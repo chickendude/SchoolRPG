@@ -1,0 +1,19 @@
+.nolist
+#include "ti83plus.inc"
+.list
+
+; OS equates
+#define saferam1	$8265	; 768 bytes (apdram)
+#define gbuf		$9340	; aka plotsscreen
+#define progStart	$9D95
+
+; Constants
+#define GB_ROWS		64
+#define GB_WIDTH	12
+GB_SIZE			=	12*64
+
+.db t2ByteTok, tasmCmp
+.org progStart
+
+start:
+	ret
