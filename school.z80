@@ -3,17 +3,206 @@
 .list
 
 ; OS equates
-#define saferam1	$8265	; 768 bytes (apdram)
-#define gbuf		$9340	; aka plotsscreen
+#define saferam		$86EC	; 768 bytes (saveSScreen)
+; TODO: Perhaps switch to _InsertMem/_DeleteMem instead of using ramStart?
+#define gbuf		$8000	; "ram start", ~1k bytes of scratch space
 #define progStart	$9D95
 
+; Key equates
+#define GRP_ARROWS	%11111110	; arrow group ;)
+#define GRP_ENTCLR	%11111101	; right column, including Enter/Clear
+#define GRP_2NDDEL	%10111111	; F keys, 2nd, Mode, Del
+#define DI_CLEAR	%10111111	; Clear
+
 ; Constants
-#define GB_ROWS		64
-#define GB_WIDTH	12
-GB_SIZE			=	12*64
+#define SCREEN_ROWS		64
+#define SCREEN_WIDTH	12
+SCREEN_SIZE			=	SCREEN_ROWS * SCREEN_WIDTH
+GBUF_WIDTH			=	SCREEN_WIDTH + 1
+GBUF_ROWS			=	SCREEN_ROWS + 8
+GBUF_SIZE			=	GBUF_WIDTH  * GBUF_ROWS
+
+
+; Variables
+mapPtr				=	saferam
+mapX				=	mapPtr + 2
+mapY				=	mapX + 1
+mapW				=	mapY + 1
+mapH				=	mapW + 1
 
 .db t2ByteTok, tasmCmp
 .org progStart
 
 start:
+	bcall(_ClrLCDFull)		; probably not needed anymore
+	di						;
+	ld hl, tilemap + 2		; save the tilemap
+	ld (mapPtr), hl			;
+	ld hl, (tilemap)		; get width and height of tilemap
+	ld (mapW), hl			; ..and save to mapW and mapH
+	ld hl, 0				;
+	ld (mapX), hl			; set mapX and mapY to 0
+	call clearScreen		; first let's clear the gbuf
+
+mainLoop:
+	call drawMap			; draw the tilemap to the screen
+	call fastCopy
+
+; check keys
+; First check if [Clear] was pressed
+	ld a, GRP_ENTCLR
+	call getK
+	cp DI_CLEAR
+	 jr z, quit
+
+; Now check the arrow keys
+	ld a, GRP_ARROWS		; if we use rra, we can test in this order: DLRU
+	call getK				;
+	rra						; put right-most bit into carry
+	push af					; if the bit is zero, the key is pressed
+		call nc, mapDown	;
+	pop af					;
+	rra						;
+	push af					;
+		call nc, mapLeft	;
+	pop af					;
+	rra						;
+	push af					;
+		call nc, mapRight	;
+	pop af					;
+	rra						;
+	 call nc, mapUp			;
+	jr mainLoop				; and repeat!
+
+; make sure all keys have been released before testing the keys
+waitReleaseKey:
+	xor a
+	call getK
+	inc a
+	 jr nz, waitReleaseKey
+	call waitKey			; wait for a key press and quit
+	jp quit
+
+waitKey:
+	xor a
+	call getK
+	inc a
+	 jr z, waitKey
 	ret
+
+clearScreen:
+	ld hl, gbuf
+	ld de, gbuf + 1
+	ld (hl), 0
+	ld bc, GBUF_SIZE - 1
+	ldir
+	ret
+
+quit:
+	bcall(_FillBasePageTable)
+	ret
+
+; in:
+;	a = group(s) to read
+; out:
+;	a = byte from key scan
+; touches:
+;	a
+getK:
+	push af				; a = group to read
+		ld a, $FF		; clear key port
+		out (1), a		;
+	pop af				; a = key group
+	out (1), a			; tell the calc which column(s) of the key matrix to read
+	push hl				; these are just delay cycles
+	pop hl				; supposedly some calcs need them to not get bogus values
+	in a, (1)			; read the keys pressed into a
+	ret
+
+fastCopy:
+	di					; make sure interrupts aren't running
+	ld a, $80			; first row
+	out ($10), a		; tell LCD driver which row to start with
+	ld a, $20			; first column
+	ld c, a				; save column
+	ld hl, gbuf
+	inc hl				; waste cycles
+	dec hl
+; hl = position in the gbuf
+; c = column we're drawing in
+fastCopyCol:
+	ld b, SCREEN_ROWS
+	out ($10), a		; set the column
+	inc c				; prepare to move to next column
+	ld de, GBUF_WIDTH - 2	; because of two "inc hl"s
+	push hl				; = top gbuf position of column
+fastCopyLoop:
+		ld a, (hl)		; grab byte from gbuf
+		add hl, de		; move to next row in gbuf
+		inc hl			; waste cycles
+		inc hl
+		inc de			; more waste cycles
+		out ($11), a	; send byte to LCD
+		dec de
+	djnz fastCopyLoop
+	pop hl				; hl = top column in gbuf
+	inc hl				; move to next column
+	ld a, c				; check which LCD column we're in
+	cp $2C				; starts at $20, so $2C is the 13th column ($20 = 1, $21 = 2
+	 jp nz, fastCopyCol	; .. etc.)
+	ret
+
+; Code
+; Try to keep this section pure code in case we end up crossing 8kb
+#include "math.z80"
+#include "tilemap.z80"
+
+; Data
+; Static data should go here. Try not to include any code past this point.
+tilemap:
+	.db 17,20
+	.db 01,01,01,01,01,01,01,00,01,02,00,00,02,01,01,01,01
+	.db 01,00,00,00,00,00,00,00,00,00,00,00,02,01,01,01,01
+	.db 01,00,02,00,02,00,00,00,00,00,00,00,02,00,00,00,02
+	.db 01,00,00,02,00,00,00,00,00,00,00,00,02,00,00,00,02
+	.db 01,00,02,00,02,00,00,00,00,00,00,00,00,00,00,00,01
+	.db 01,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,01
+	.db 01,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,01
+	.db 01,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,02
+	.db 01,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,01
+	.db 01,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,01
+	.db 01,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,02
+	.db 01,00,00,00,00,00,00,00,00,00,00,00,00,00,00,00,01
+	.db 01,02,02,02,00,00,00,00,00,00,00,00,00,00,00,00,01
+	.db 01,02,02,02,00,00,00,00,00,00,00,00,00,00,00,00,02
+	.db 01,02,02,02,00,00,00,00,00,00,00,00,00,00,00,00,02
+	.db 01,02,02,02,00,00,00,00,00,00,00,00,00,00,00,00,02
+	.db 01,02,02,02,00,00,00,00,00,00,00,00,00,00,00,00,01
+	.db 01,02,02,02,00,00,00,00,00,00,00,00,00,00,00,01,01
+	.db 01,02,02,02,00,00,00,00,00,00,00,00,00,00,01,01,01
+	.db 01,02,02,02,00,00,00,00,00,00,00,00,00,01,01,01,01
+
+sprites:
+sprite:
+	.db 0,0,0,0
+	.db 0,0,0,0
+
+sprite1:
+	.db $FF
+	.db %10000001
+	.db %10000001
+	.db %10000001
+	.db %10101001
+	.db %10000001
+	.db %10000001
+	.db $FF
+
+sprite2:
+	.db $FF
+	.db %10000001
+	.db %10100001
+	.db %10100001
+	.db %10010001
+	.db %10001001
+	.db %10001001
+	.db $FF

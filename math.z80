@@ -1,0 +1,26 @@
+; Taken from:
+; http://wikiti.brandonw.net/index.php?title=Z80_Routines:Math:Multiplication#8.2A8_multiplication
+;
+; Explanation:
+; Binary multiplication is the same as normal decimal multiplication.
+; It's actually much simpler. The basic idea is when you are multiplying
+; two numbers, you go through one number bit by bit (here we use H),
+; if that bit is a 1, then you add the other number (here, E). Each time
+; we check a new digit, we need to shift that the result left one (i.e.
+; add a zero to the end). Conveniently enough, we can do the shift and the
+; bit check in one instruction by using "add hl, hl", which shifts H (our
+; original value) and L (where the result will go) left and puts the left-
+; most bit into the carry, which we can use to test if it was a 1 or 0.
+multEH:
+	ld l, 0			; clear out L and D
+	ld d, l			; ..since we've got H and E loaded
+	sla h			; optimised 1st iteration
+	 jr nc, $+3
+		ld l, e
+	ld b, 7
+multEHLoop:
+		add	hl, hl
+		 jr nc, $+3
+			add	hl, de
+	 djnz multEHLoop
+	ret

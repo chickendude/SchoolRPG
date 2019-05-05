@@ -1,0 +1,133 @@
+; Draw a tilemap to the screen
+; What it does:
+;	1. Find our position in the gbuf and in our tilemap
+;	2. Draw a row of the tilemap sprite by sprite
+;	3. Loop until all rows have been drawn
+drawMap:
+	ld hl, mapX				; &mapX
+	ld c, (hl)				;
+	ld b, 0					; bc = mapX
+	inc hl					; &mapY
+	ld e, (hl)				; e = mapY
+	inc hl					; &mapW
+	ld h, (hl)				; h = mapW
+	call multEH				; hl = mapW * mapY
+	ld de, (mapPtr)
+	add hl, de
+	add hl, bc				; hl = map + x offset
+	ex de, hl				; de = starting position in tilemap
+	ld hl, gbuf
+	ld c, GBUF_ROWS / 8		; number of sprites per column
+
+drawMapRow:
+	ld b, GBUF_WIDTH		; number of sprites per row
+
+; This inner loop is run hundreds of times per frame, so we want it to be
+; as fast as possible.
+drawMapSprite:
+	push hl					; hl = gbuf position
+	push de					; de = position in tilemap
+	push bc					; b = num sprites per row
+		ld c, l				; save hl
+		ld b, h				; bc = gbuf position
+; find the address of the sprite from its ID
+		ld a, (de)			; get sprite number
+		ld l, a
+		ld h, 0
+		add hl, hl			; * 2
+		add hl, hl			; * 4
+		add hl, hl			; hl * 8
+		ld de, sprites		;
+		add hl, de			; hl = sprite pointer
+		ex de, hl			; de = sprite pointer
+		ld l, c				; restore hl
+		ld h, b				; hl = position in gbuf
+		ld bc, GBUF_WIDTH
+; copy from sprite data to gbuf
+		ld a, (de)			; 1: sprite byte
+		ld (hl), a			; store in gbuf
+		add hl, bc			; next row of gbuf
+		inc de				; next row in sprite
+		ld a, (de)			; 2
+		ld (hl), a			;
+		add hl, bc			;
+		inc de				;
+		ld a, (de)			; 3
+		ld (hl), a			;
+		add hl, bc			;
+		inc de				;
+		ld a, (de)			; 4
+		ld (hl), a			;
+		add hl, bc			;
+		inc de				;
+		ld a, (de)			; 5
+		ld (hl), a			;
+		add hl, bc			;
+		inc de				;
+		ld a, (de)			; 6
+		ld (hl), a			;
+		add hl, bc			;
+		inc de				;
+		ld a, (de)			; 7
+		ld (hl), a			;
+		add hl, bc			;
+		inc de				;
+		ld a, (de)			; 8
+		ld (hl), a			;
+	pop bc					; b = current column in row of tilemap sprites
+	pop de					; de = position in tilemap
+	pop hl					; hl = position of gbuf
+	inc hl					; next column of gbuf
+	inc de					; next tile in tilemap
+	djnz drawMapSprite
+; update gbuf and tilemap pointers to go to next row
+	push bc
+		ld c, GBUF_WIDTH * 7	; we've drawn one row, hl is pointing to 2nd row of
+		add hl, bc			; we need to move down 7 more rows (each tile is 8x8)
+		ex de,hl			; hl = position in tilemap
+		ld a, (mapW)		; now we need to jump down to the next row in our
+		sub GBUF_WIDTH		; .. tilemap.
+		ld c, a
+		add hl, bc
+		ex de,hl			; hl = gbuf position, de = tilemap position
+	pop bc
+	dec c
+	 jp nz, drawMapRow
+	ret
+
+; Map Movement Routines
+; Handle moving around the map.
+
+mapLeft:
+	ld hl, mapX				; get X pos in map
+	ld a, (hl)				;
+	or a					; quit the routine if we're at the left edge of the map
+	 ret z					;
+	dec (hl)				; otherwise, move left
+	ret
+
+mapRight:
+	ld hl, mapX				; X position in map
+	ld a, (mapW)			; width of map in tiles
+	sub SCREEN_WIDTH + 1	; since our X position stars at the left edge, we need
+	cp (hl)					; .. to adjust the value of mapW to point to left edge
+	 ret c					; .. and quit if it's beyond the width of the current map
+	inc (hl)				; otherwise, move right
+	ret
+
+mapUp:
+	ld hl, mapY				; same as mapLeft, check if we're at top of screen
+	ld a, (HL)				; and if we are, quit
+	or a					;
+	 ret z					;
+	dec (hl)				; otherwise, move map up
+	ret
+
+mapDown:
+	ld hl, mapY				; again, similar to mapRight, just for Y values
+	ld a, (mapH)			; since on the screen we show SCREEN_ROWS / 8 tiles
+	sub SCREEN_ROWS / 8 + 1	; .. (8x8, so 12 tiles), we need to subtract that from
+	cp (hl)					; .. mapH to make sure mapY and mapH are both pointing
+	 ret c					; .. to the top of the screen.
+	inc (hl)
+	ret
