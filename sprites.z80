@@ -1,0 +1,105 @@
+; Draws a masked sprite eight (8) pixels wide and variable height tall.
+; There are two tracks, one for aligned sprites which don't need bit rotation
+;	and one for unaligned sprites.
+; Note: To handle masked sprites of variable height, we use some SMC to override
+;		 the ix offset which points to the sprite mask after the sprite data.
+; input:		b	= sprite height
+;				a	= x coordinate
+;				l	= y coordinate
+;				ix	= sprite pointer (mask should be immediately after sprite data)
+; output:		none
+; destroys:	ix hl de bc af
+drawMaskedSprite8:
+	push af
+; TODO y clipping
+		ld a, b				; sprite height
+		ld (dsm_not_aligned_mask), a	; offset for sprite mask
+		ld (dsm_aligned_mask), a
+		ld a, l
+		add a, b
+		cp b
+		 jr nc, $ + 2		; if y >= -height, skip
+		
+	pop af
+
+; check if x is out of bounds
+	add a, 8				; we add 8 to be able to test negative numbers, too.
+	cp 96					; if -8 < x < 88 (remember, we added 8, so -8 now = 0)
+	 ret nc					; if x is out of range, don't draw sprite
+	sub 8					; restore original x value
+; get proper y offset (multiply by 13 because each row in gbuf has 13 columns)
+	ld h, 0					; clear out upper byte of hl
+	ld e, l					;
+	ld d, h					; ld de, hl
+	add	hl, hl				; x2
+	add	hl, de				; x3
+	add	hl, hl				; x6
+	add	hl, hl				; x12
+	add hl, de				; hl = y * 13
+; get proper x offset
+	ld c, a					; save x value
+		rra					; /2
+		rra					; /4
+		rra					; /8
+		and %00011111		; clear out upper bits
+		bit 4, a			; check if x value is positive or negative (remember, we've shifted three times)
+		 jr z, $ + 5		; skip if positive
+		 	dec d			; turn de into negative number (d = $FF)
+			or %11100000	; fill in upper 3 bits to make sure number remains negative
+		ld e, a				; de = x / 8
+	ld a, c					; restore original x value
+; add offsets to gbuf
+	add	hl, de				; y coordinate plus x offset
+	ld de, gbuf				;
+	add	hl, de				; offset of sprite's first byte in gbuf
+	and $07					; get x offset
+	ld c, a					; c = x offset
+	or a					; if a = 0, sprite is aligned and no need to shift
+	ld a, b					; sprite height
+	ld (dsm_not_aligned_mask), a	; offset for sprite mask
+	 jr nz, dsm_not_aligned	; if sprite is unaligned
+; ALIGNED
+	ld (dsm_aligned_mask), a
+	ld de, GBUF_WIDTH		; number of columns in gbuf
+dsm_aligned:
+	ld a, (hl)				; get current byte in gbuf
+dsm_aligned_mask = $ + 2
+	and (ix + 0)			; add sprite mask
+	or (ix)					; draw sprite
+	ld (hl), a				; save back to gbuf
+	inc ix					; next byte
+	add hl, de 				; next row in gbuf
+	 djnz dsm_aligned		; repeat for each byte in sprite
+	ret
+; UNALIGNED
+dsm_not_aligned:
+	push bc					; b = counter, c = x offset
+		ld b, c
+dsm_not_aligned_mask = $ + 2
+		ld a, (ix + 0)		; a = mask byte
+		ld c, $FF			; dummy byte
+		ld d, (ix)			; d = sprite byte
+		ld e, 0				; e = right byte of sprite
+dsm_rotate:
+		scf					; carry flag to shift into the mask
+		rra					; a = mask
+		rr c				; c = overflow
+		srl d				; d = sprite byte
+		rr e				; e = sprite overflow
+		 djnz dsm_rotate	; repeat for number of bits that need to be shifted over
+		 					; mask = ac
+							; sprite = de
+		and (hl)			; clear mask out on gbuf
+		or d				; draw sprite
+		ld (hl), a			; * save left side of sprite *
+		inc	hl				; next byte in gbuf
+		ld a, c				; right byte of mask
+		and (hl)			; clear mask out on gbuf
+		or e				; draw right byte of sprite
+		ld (hl), a			; * save right side of sprite *
+		ld de, 12			; we've shifted over one byte already, so 12 - 1
+		add	hl, de			; next row in gbuf
+		inc ix				; next byte in sprite
+	pop	bc					; b = counter, c = x offset
+	 djnz dsm_not_aligned
+	ret

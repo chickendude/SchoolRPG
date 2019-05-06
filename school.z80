@@ -48,6 +48,7 @@ start:
 
 mainLoop:
 	call drawMap			; draw the tilemap to the screen
+	call drawPlayer
 	call rotateScreen		; update the fastCopy routine to properly rotate the gbuf
 	call fastCopy
 
@@ -213,6 +214,8 @@ rotateScreen:
 ; Code
 ; Try to keep this section pure code in case we end up crossing 8kb
 #include "math.z80"
+#include "player.z80"
+#include "sprites.z80"
 #include "tilemap.z80"
 
 ; Data
@@ -268,6 +271,17 @@ tilemap:
 	.db 01,02,02,02,00,00,00,00,00,00,00,00,00,01,01,01,01
 
 sprites:
+playerSprites:
+#include "data/player_0.bmp"
+#include "data/player_1.bmp"
+#include "data/player_2.bmp"
+#include "data/player_3.bmp"
+#include "data/player_4.bmp"
+#include "data/player_5.bmp"
+#include "data/player_6.bmp"
+#include "data/player_7.bmp"
+
+tileData:
 sprite:
 	.db 0,0,0,0
 	.db 0,0,0,0

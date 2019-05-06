@@ -1,0 +1,11 @@
+; Routines dealing with the player. Currently just the routine to draw the player's sprite.
+
+drawPlayer:
+	ld a, 20
+	ld l, 30
+	ld b, 12
+	ld ix, playerSprites
+	jp drawMaskedSprite8
+
+moveLeft:
+	

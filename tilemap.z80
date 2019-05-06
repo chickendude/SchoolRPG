@@ -38,7 +38,7 @@ drawMapSprite:
 		add hl, hl			; * 2
 		add hl, hl			; * 4
 		add hl, hl			; hl * 8
-		ld de, sprites		;
+		ld de, tileData		;
 		add hl, de			; hl = sprite pointer
 		ex de, hl			; de = sprite pointer
 		ld l, c				; restore hl
