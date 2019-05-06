@@ -143,20 +143,25 @@ fastCopyCol:
 	ld b, SCREEN_ROWS
 	out ($10), a		; set the column
 	inc c				; prepare to move to next column
-	ld de, GBUF_WIDTH - 2	; because of two "inc hl"s
+	ld de, GBUF_WIDTH - 1	; because we load two bytes of the gbuf, we need to subtract one
 	push hl				; = top gbuf position of column
 fastCopyLoop:
 		ld a, (hl)		; grab byte from gbuf
 fastRotationLeft:		; thanks to the magic of SMC, we'll overwrite the following bytes with rotation instructions
 		.db 0, 0, 0, 0	; .. to allow us to draw the map even when it's not byte-aligned
 fastMaskLeft = $ + 1	; we also need to apply a mask so we don't draw the parts that have been rotated to the other side
-		and $FF			; this also gets overwritte via SMC
-		add hl, de		; move to next row in gbuf
-		inc hl			; waste cycles
+		and $FF			; this also gets overwritten via SMC
+		ld d, a
 		inc hl
-		inc de			; more waste cycles
-		out ($11), a	; send byte to LCD
-		dec de
+		ld a, (hl)
+fastRotationRight:
+		.db 0, 0, 0, 0
+fastMaskRight = $ + 1
+		and $FF
+		or d
+		out ($11), a
+		ld d, 0
+		add hl, de		; move to next row in gbuf
 	djnz fastCopyLoop
 	pop hl				; hl = top column in gbuf
 	inc hl				; move to next column
@@ -166,7 +171,40 @@ fastMaskLeft = $ + 1	; we also need to apply a mask so we don't draw the parts t
 	ret
 
 rotateScreen:
-	
+	ld a, (mapX)		; we're interested in the top 3 bits
+	rlca				;
+	rlca				;
+	rlca				;
+	and $7				; clear out fraction values
+	ld c, a				;
+	ld b, 0				; bc = x offset (0-7) without fraction values
+	cp 4				; if we are more than halfway through the sprite, it's faster to rotate right
+	ld hl, rotationRight - 4
+	 jr nc, $ + 5
+		ld hl, rotationLeft
+	add hl, bc			; hl points to the start of the rotation instructions to copy into the fastcopy routine
+	push hl				; we need to save hl for the right rotation instructions
+		ld de, fastRotationLeft
+		ldi
+		ldi
+		ldi
+		ldi
+	pop hl
+	ld de, fastRotationRight
+	ldi
+	ldi
+	ldi
+	ldi
+	ld hl, rotationMask	; 
+	ld c, a
+	ld b, 0
+	add hl, bc
+	ld a, (hl)
+	ld de, fastMaskLeft
+	ld (de), a
+	cpl
+	ld de, fastMaskRight
+	ld (de), a
 	ret
 	
 
@@ -195,6 +233,16 @@ rotationLeft:
 	rlca
 	rlca
 	rlca
+
+rotationMask:
+	.db %11111111
+	.db %11111110
+	.db %11111100
+	.db %11111000
+	.db %11110000
+	.db %11100000
+	.db %11000000
+	.db %10000000
 
 tilemap:
 	.db 17,20

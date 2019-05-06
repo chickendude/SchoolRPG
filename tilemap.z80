@@ -113,9 +113,10 @@ mapRight:
 	ld hl, (mapX)			; X position in map
 	add hl, de				; try to move right one pixel
 	ld a, (mapW)			; width of map in tiles
-	sub SCREEN_WIDTH		; since X position starts at the left edge, we need to subtract screen width
+	sub SCREEN_WIDTH + 1	; since X position starts at the left edge, we need to subtract screen width
 							; .. to test if we're at the right edge of the map
 	cp h					; h holds the byte/tile-aligned value
+	inc a
 	 jr nc, $ + 5			; test if h is pointing to the right edge of the screen
 		ld h, a				; if so, make it stop at the right edge
 		ld l, 0				;
@@ -133,14 +134,14 @@ mapUp:
 
 mapDown:
 	ld de, ONE_PIXEL
-	ld hl, (mapY)			; again, similar to mapRight, just for Y values
+	ld hl, (mapY)			; similar to mapRight, just for Y values
 	add hl, de
 	ld a, (mapH)			; since on the screen we show SCREEN_ROWS / 8 tiles
 	sub SCREEN_ROWS / 8 + 1	; .. (8x8, so 12 tiles), we need to subtract that from
 	cp h					; .. mapH to make sure mapY and mapH are both pointing
-	inc a
-	 jr nc, $ + 5			; .. to the top of the screen.
-		ld h, a
+	inc a					; to compensate for the + 1  we subtracted from mapH
+	 jr nc, $ + 5			; check if we're at the edge or past it
+		ld h, a				; if so, align to right edge of map
 		ld l, 0
-	ld (mapY), hl
+	ld (mapY), hl			; save new Y position
 	ret
