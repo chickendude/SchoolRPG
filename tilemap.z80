@@ -136,8 +136,9 @@ mapDown:
 	ld hl, (mapY)			; again, similar to mapRight, just for Y values
 	add hl, de
 	ld a, (mapH)			; since on the screen we show SCREEN_ROWS / 8 tiles
-	sub SCREEN_ROWS / 8		; .. (8x8, so 12 tiles), we need to subtract that from
+	sub SCREEN_ROWS / 8 + 1	; .. (8x8, so 12 tiles), we need to subtract that from
 	cp h					; .. mapH to make sure mapY and mapH are both pointing
+	inc a
 	 jr nc, $ + 5			; .. to the top of the screen.
 		ld h, a
 		ld l, 0

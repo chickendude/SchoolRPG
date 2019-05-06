@@ -48,6 +48,7 @@ start:
 
 mainLoop:
 	call drawMap			; draw the tilemap to the screen
+	call rotateScreen		; update the fastCopy routine to properly rotate the gbuf
 	call fastCopy
 
 ; check keys
@@ -126,11 +127,16 @@ fastCopy:
 	di					; make sure interrupts aren't running
 	ld a, $80			; first row
 	out ($10), a		; tell LCD driver which row to start with
+	ld hl, gbuf
+	ld a, (mapY)
+	ld c, GBUF_WIDTH
+	call multAC3		; a = map y * gbuf width
+	ld b, 0
+	ld c, a
+	add hl, bc
 	ld a, $20			; first column
 	ld c, a				; save column
-	ld hl, gbuf
-	inc hl				; waste cycles
-	dec hl
+
 ; hl = position in the gbuf
 ; c = column we're drawing in
 fastCopyCol:
@@ -160,6 +166,8 @@ fastMaskLeft = $ + 1	; we also need to apply a mask so we don't draw the parts t
 	ret
 
 rotateScreen:
+	
+	ret
 	
 
 

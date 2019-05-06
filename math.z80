@@ -15,12 +15,30 @@ multEH:
 	ld l, 0			; clear out L and D
 	ld d, l			; ..since we've got H and E loaded
 	sla h			; optimised 1st iteration
-	 jr nc, $+3
+	 jr nc, $ + 3
 		ld l, e
 	ld b, 7
 multEHLoop:
 		add	hl, hl
-		 jr nc, $+3
+		 jr nc, $ + 3
 			add	hl, de
 	 djnz multEHLoop
+	ret
+
+; This just multiplies the upper 3 bits of a with C, treating those bits
+; as the values 0 - 7.
+; Note: C must also be 6 bits or smaller.
+;
+; only changes the value of a
+multAC3:
+	and %11100000	; clear out lower bits of a
+	add a, a
+	 jr nc, $ + 3
+		add a, c
+	add a, a
+	 jr nc, $ + 3
+		add a, c
+	add a, a
+	 jr nc, $ + 3
+		add a, c
 	ret
