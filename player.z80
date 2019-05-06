@@ -1,29 +1,13 @@
 ; Routines dealing with the player.
 
 drawPlayer:
-	ld de, (playerX)	; remove fraction from playerX
-	call removeFractionDE	; [math.z80] hl = playerX
-
-; check if player is near left edge
-	ld e, SCREEN_WIDTH * 8 / 2 - 4	; d = 0 from removeFractionDE
-	sbc hl, de			; carry should be reset from removeFractionDE call
-	add hl, de			; cp hl, de
+	call isPlayerLeftEdge
 	 jr nc, drawPlayerCheckRight
 		ld a, l			; draw at player's x coordinate, no need to adjust it
 		jr drawPlayerCheckTop
 drawPlayerCheckRight:
-; check if player is near right edge
-	ex de, hl
-	ld hl, (mapW)		;
-	ld h, 0
-	add hl, hl			; x 2
-	add hl, hl			; x 4
-	add hl, hl			; mapW x 8
-	sbc hl, de			; carry reset from add hl, hl
-	ld bc, SCREEN_WIDTH * 8 / 2 - 4	;
-	sbc hl, bc			; check if player is approaching edge of screen
-	add hl, bc
-	ld a, c				; default x value (middle of screen)
+	call isPlayerRightEdge
+	ld a, c				; default value (middle of screen)
 	 jr nc, drawPlayerCheckTop
 	 	ld a, SCREEN_WIDTH * 8 - 8
 		sub l
@@ -32,6 +16,33 @@ drawPlayerCheckTop:
 	ld b, 12			; sprite height
 	ld ix, playerSprites
 	jp drawMaskedSprite8
+
+; check if player is near left edge
+; c set if the player is at the left edge of the map
+isPlayerLeftEdge:
+	ld de, (playerX)		; remove fraction from playerX
+	call removeFractionDE	; [math.z80] hl = playerX
+	ld e, SCREEN_WIDTH * 8 / 2 - 4	; d = 0 from removeFractionDE
+	sbc hl, de				; carry should be reset from removeFractionDE call
+	add hl, de
+	ret
+
+; check if player is near right edge
+; c set if player is at right edge of the map
+isPlayerRightEdge:
+	ld de, (playerX)		; remove fraction from playerX
+	call removeFractionDE	; [math.z80] hl = playerX
+	ex de, hl
+	ld hl, (mapW)			;
+	ld h, 0
+	add hl, hl				; x 2
+	add hl, hl				; x 4
+	add hl, hl				; mapW x 8
+	sbc hl, de				; carry reset from add hl, hl
+	ld bc, SCREEN_WIDTH * 8 / 2 - 4	;
+	sbc hl, bc				; check if player is approaching edge of screen
+	add hl, bc
+	ret
 
 moveLeft:
 	ld de, ONE_PIXEL

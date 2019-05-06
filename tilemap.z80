@@ -4,6 +4,22 @@
 ;	2. Draw a row of the tilemap sprite by sprite
 ;	3. Loop until all rows have been drawn
 drawMap:
+	call isPlayerLeftEdge
+	 jr nc, drawMapCheckRightEdge
+		ld hl, 0
+		ld (mapX), hl
+		jr drawMapCheckTop
+drawMapCheckRightEdge:
+	call isPlayerRightEdge
+	 jr nc, drawMapCenterX
+		ld a, (mapW)
+		sub SCREEN_WIDTH
+		ld h, a
+		ld l, 0
+		ld (mapX), hl
+		jr drawMapCheckTop
+drawMapCenterX:
+drawMapCheckTop:
 	ld hl, mapX + 1			; MSB of mapX, this byte will be byte-aligned
 	ld c, (hl)				;
 	ld b, 0					; bc = mapX
