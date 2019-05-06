@@ -30,6 +30,8 @@ mapX				=	mapPtr + 2	; X and Y are organized like this:
 mapY				=	mapX + 2	; %0000 0000 000.0 0000
 mapW				=	mapY + 2
 mapH				=	mapW + 1
+playerX				=	mapH + 1
+playerY				=	playerX + 2
 
 .db t2ByteTok, tasmCmp
 .org progStart
@@ -44,6 +46,9 @@ start:
 	ld hl, 0				;
 	ld (mapX), hl			; set mapX and mapY to 0
 	ld (mapY), hl			;
+	ld h, 3
+	ld (playerX), hl
+	ld (playerY), hl
 	call clearScreen		; first let's clear the gbuf
 
 mainLoop:
@@ -68,11 +73,11 @@ mainLoop:
 	pop af					;
 	rra						;
 	push af					;
-		call nc, mapLeft	;
+		call nc, moveLeft	;
 	pop af					;
 	rra						;
 	push af					;
-		call nc, mapRight	;
+		call nc, moveRight	;
 	pop af					;
 	rra						;
 	 call nc, mapUp			;

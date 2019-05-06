@@ -42,3 +42,24 @@ multAC3:
 	 jr nc, $ + 3
 		add a, c
 	ret
+
+; This removes the fraction part of a number and shifts it all to the right.
+;
+; input:
+;	de = number to convert: %0000 0000 000.0 0000 -> %---- -000 0000 0000
+; output:
+;	hl = converted number
+removeFractionDE:
+	ld a, e				; e holds the values 0.0 to 7.99...
+	rlca \ rlca \ rlca	; remove the fraction
+	and $7				; clean out the other bits
+	ld e, a				; save the pixel offset in e
+	ld l, d				;
+	ld d, 0				; clear out d so we can add de to hl below
+	ld h, d				; clear out h
+	add hl, hl			; x2
+	add hl, hl			; x4
+	add hl, hl			; multiply hl by 8
+	add hl, de			; add the lower 3 bits back in
+	ret
+

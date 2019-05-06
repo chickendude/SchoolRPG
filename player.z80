@@ -1,11 +1,49 @@
-; Routines dealing with the player. Currently just the routine to draw the player's sprite.
+; Routines dealing with the player.
 
 drawPlayer:
-	ld a, 20
-	ld l, 30
-	ld b, 12
+	ld de, (playerX)	; remove fraction from playerX
+	call removeFractionDE	; [math.z80] hl = playerX
+
+; check if player is near left edge
+	ld e, SCREEN_WIDTH * 8 / 2 - 4	; d = 0 from removeFractionDE
+	sbc hl, de			; carry should be reset from removeFractionDE call
+	add hl, de			; cp hl, de
+	 jr nc, drawPlayerCheckRight
+		ld a, l			; draw at player's x coordinate, no need to adjust it
+		jr drawPlayerCheckTop
+drawPlayerCheckRight:
+; check if player is near right edge
+	ex de, hl
+	ld hl, (mapW)		;
+	ld h, 0
+	add hl, hl			; x 2
+	add hl, hl			; x 4
+	add hl, hl			; mapW x 8
+	sbc hl, de			; carry reset from add hl, hl
+	ld bc, SCREEN_WIDTH * 8 / 2 - 4	;
+	sbc hl, bc			; check if player is approaching edge of screen
+	add hl, bc
+	ld a, c				; default x value (middle of screen)
+	 jr nc, drawPlayerCheckTop
+	 	ld a, SCREEN_WIDTH * 8 - 8
+		sub l
+drawPlayerCheckTop:
+	ld l, 30			; y coord
+	ld b, 12			; sprite height
 	ld ix, playerSprites
 	jp drawMaskedSprite8
 
 moveLeft:
-	
+	ld de, ONE_PIXEL
+	ld hl, (playerX)		; X position in map
+	or a
+	sbc hl, de				; try to move right one pixel
+	ld (playerX), hl			; save the new map position
+	ret
+
+moveRight:
+	ld de, ONE_PIXEL
+	ld hl, (playerX)		; X position in map
+	add hl, de				; try to move right one pixel
+	ld (playerX), hl			; save the new map position
+	ret
