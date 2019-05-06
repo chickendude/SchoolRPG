@@ -4,10 +4,11 @@
 ;	2. Draw a row of the tilemap sprite by sprite
 ;	3. Loop until all rows have been drawn
 drawMap:
-	ld hl, mapX				; &mapX
+	ld hl, mapX + 1			; MSB of mapX, this byte will be byte-aligned
 	ld c, (hl)				;
 	ld b, 0					; bc = mapX
-	inc hl					; &mapY
+	inc hl					; skip to MSB of mapY
+	inc hl					; 
 	ld e, (hl)				; e = mapY
 	inc hl					; &mapW
 	ld h, (hl)				; h = mapW
@@ -99,35 +100,46 @@ drawMapSprite:
 ; Handle moving around the map.
 
 mapLeft:
-	ld hl, mapX				; get X pos in map
-	ld a, (hl)				;
-	or a					; quit the routine if we're at the left edge of the map
-	 ret z					;
-	dec (hl)				; otherwise, move left
+	ld de, -ONE_PIXEL
+	ld hl, (mapX)			; get X pos in map
+	add hl, de
+	 jr c, $ + 5
+		ld hl, 0
+	ld (mapX), hl
 	ret
 
 mapRight:
-	ld hl, mapX				; X position in map
+	ld de, ONE_PIXEL
+	ld hl, (mapX)			; X position in map
+	add hl, de				; try to move right one pixel
 	ld a, (mapW)			; width of map in tiles
-	sub SCREEN_WIDTH + 1	; since our X position stars at the left edge, we need
-	cp (hl)					; .. to adjust the value of mapW to point to left edge
-	 ret c					; .. and quit if it's beyond the width of the current map
-	inc (hl)				; otherwise, move right
+	sub SCREEN_WIDTH		; since X position starts at the left edge, we need to subtract screen width
+							; .. to test if we're at the right edge of the map
+	cp h					; h holds the byte/tile-aligned value
+	 jr nc, $ + 5			; test if h is pointing to the right edge of the screen
+		ld h, a				; if so, make it stop at the right edge
+		ld l, 0				;
+	ld (mapX), hl			; save the new map position
 	ret
 
 mapUp:
-	ld hl, mapY				; same as mapLeft, check if we're at top of screen
-	ld a, (HL)				; and if we are, quit
-	or a					;
-	 ret z					;
-	dec (hl)				; otherwise, move map up
+	ld de, -ONE_PIXEL
+	ld hl, (mapY)			; get Y pos in map
+	add hl, de
+	 jr c, $ + 5
+		ld hl, 0
+	ld (mapY), hl
 	ret
 
 mapDown:
-	ld hl, mapY				; again, similar to mapRight, just for Y values
+	ld de, ONE_PIXEL
+	ld hl, (mapY)			; again, similar to mapRight, just for Y values
+	add hl, de
 	ld a, (mapH)			; since on the screen we show SCREEN_ROWS / 8 tiles
-	sub SCREEN_ROWS / 8 + 1	; .. (8x8, so 12 tiles), we need to subtract that from
-	cp (hl)					; .. mapH to make sure mapY and mapH are both pointing
-	 ret c					; .. to the top of the screen.
-	inc (hl)
+	sub SCREEN_ROWS / 8		; .. (8x8, so 12 tiles), we need to subtract that from
+	cp h					; .. mapH to make sure mapY and mapH are both pointing
+	 jr nc, $ + 5			; .. to the top of the screen.
+		ld h, a
+		ld l, 0
+	ld (mapY), hl
 	ret

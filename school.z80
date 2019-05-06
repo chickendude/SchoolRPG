@@ -21,13 +21,14 @@ SCREEN_SIZE			=	SCREEN_ROWS * SCREEN_WIDTH
 GBUF_WIDTH			=	SCREEN_WIDTH + 1
 GBUF_ROWS			=	SCREEN_ROWS + 8
 GBUF_SIZE			=	GBUF_WIDTH  * GBUF_ROWS
+ONE_PIXEL			=	%00100000
 
 
 ; Variables
 mapPtr				=	saferam
-mapX				=	mapPtr + 2
-mapY				=	mapX + 1
-mapW				=	mapY + 1
+mapX				=	mapPtr + 2	; X and Y are organized like this:
+mapY				=	mapX + 2	; %0000 0000 000.0 0000
+mapW				=	mapY + 2
 mapH				=	mapW + 1
 
 .db t2ByteTok, tasmCmp
@@ -42,6 +43,7 @@ start:
 	ld (mapW), hl			; ..and save to mapW and mapH
 	ld hl, 0				;
 	ld (mapX), hl			; set mapX and mapY to 0
+	ld (mapY), hl			;
 	call clearScreen		; first let's clear the gbuf
 
 mainLoop:
@@ -119,6 +121,7 @@ getK:
 	in a, (1)			; read the keys pressed into a
 	ret
 
+; draws what's in the gbuf to the LCD
 fastCopy:
 	di					; make sure interrupts aren't running
 	ld a, $80			; first row
@@ -138,6 +141,10 @@ fastCopyCol:
 	push hl				; = top gbuf position of column
 fastCopyLoop:
 		ld a, (hl)		; grab byte from gbuf
+fastRotationLeft:		; thanks to the magic of SMC, we'll overwrite the following bytes with rotation instructions
+		.db 0, 0, 0, 0	; .. to allow us to draw the map even when it's not byte-aligned
+fastMaskLeft = $ + 1	; we also need to apply a mask so we don't draw the parts that have been rotated to the other side
+		and $FF			; this also gets overwritte via SMC
 		add hl, de		; move to next row in gbuf
 		inc hl			; waste cycles
 		inc hl
@@ -152,6 +159,11 @@ fastCopyLoop:
 	 jp nz, fastCopyCol	; .. etc.)
 	ret
 
+rotateScreen:
+	
+
+
+
 ; Code
 ; Try to keep this section pure code in case we end up crossing 8kb
 #include "math.z80"
@@ -159,6 +171,23 @@ fastCopyLoop:
 
 ; Data
 ; Static data should go here. Try not to include any code past this point.
+
+; These are the instructions that will get copied into the fast copy routine
+rotationRight:
+	rrca
+	rrca
+	rrca
+	rrca
+rotationLeft:
+	nop
+	nop
+	nop
+	nop
+	rlca
+	rlca
+	rlca
+	rlca
+
 tilemap:
 	.db 17,20
 	.db 01,01,01,01,01,01,01,00,01,02,00,00,02,01,01,01,01
