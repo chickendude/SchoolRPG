@@ -19,6 +19,10 @@ drawMapCheckRightEdge:
 		ld (mapX), hl
 		jr drawMapCheckTop
 drawMapCenterX:
+	ld hl, (playerX)
+	ld bc, (SCREEN_WIDTH * ONE_TILE) / 2 - (4 * ONE_PIXEL)
+	sbc hl, bc
+	ld (mapX), hl
 drawMapCheckTop:
 	ld hl, mapX + 1			; MSB of mapX, this byte will be byte-aligned
 	ld c, (hl)				;

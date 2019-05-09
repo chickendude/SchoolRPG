@@ -59,7 +59,7 @@ removeFractionDE:
 	ld h, d				; clear out h
 	add hl, hl			; x2
 	add hl, hl			; x4
-	add hl, hl			; multiply hl by 8
+	add hl, hl			; hl * 8
 	add hl, de			; add the lower 3 bits back in
 	ret
 
