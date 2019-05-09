@@ -21,6 +21,7 @@ SCREEN_SIZE			=	SCREEN_ROWS * SCREEN_WIDTH
 GBUF_WIDTH			=	SCREEN_WIDTH + 1
 GBUF_ROWS			=	SCREEN_ROWS + 8
 GBUF_SIZE			=	GBUF_WIDTH  * GBUF_ROWS
+PLAYER_HEIGHT		=	12
 ONE_PIXEL			=	%00100000
 ONE_TILE			=	ONE_PIXEL * 8
 
@@ -70,7 +71,7 @@ mainLoop:
 	call getK				;
 	rra						; put right-most bit into carry
 	push af					; if the bit is zero, the key is pressed
-		call nc, mapDown	;
+		call nc, moveDown	;
 	pop af					;
 	rra						;
 	push af					;
@@ -81,7 +82,7 @@ mainLoop:
 		call nc, moveRight	;
 	pop af					;
 	rra						;
-	 call nc, mapUp			;
+	 call nc, moveUp			;
 	jr mainLoop				; and repeat!
 
 ; make sure all keys have been released before testing the keys

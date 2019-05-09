@@ -1,5 +1,6 @@
 ; Draw a tilemap to the screen
 ; What it does:
+;	0. Center the map around the player's coordinates
 ;	1. Find our position in the gbuf and in our tilemap
 ;	2. Draw a row of the tilemap sprite by sprite
 ;	3. Loop until all rows have been drawn
@@ -24,6 +25,26 @@ drawMapCenterX:
 	sbc hl, bc
 	ld (mapX), hl
 drawMapCheckTop:
+	call isPlayerTopEdge
+	 jr nc, drawMapCheckBottomEdge
+		ld hl, 0
+		ld (mapY), hl
+		jr drawMapStart
+drawMapCheckBottomEdge:
+	call isPlayerBottomEdge
+	 jr nc, drawMapCenterY
+		ld a, (mapH)
+		sub SCREEN_ROWS / 8
+		ld h, a
+		ld l, 0
+		ld (mapY), hl
+		jr drawMapStart
+drawMapCenterY:
+	ld hl, (playerY)
+	ld bc, (SCREEN_ROWS * ONE_PIXEL) / 2 - (PLAYER_HEIGHT / 2 * ONE_PIXEL)
+	sbc hl, bc
+	ld (mapY), hl
+drawMapStart:
 	ld hl, mapX + 1			; MSB of mapX, this byte will be byte-aligned
 	ld c, (hl)				;
 	ld b, 0					; bc = mapX

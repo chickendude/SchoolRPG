@@ -1,28 +1,56 @@
 ; Routines dealing with the player.
 
 drawPlayer:
+	call getPlayerXCoord
+	ex af, af'
+		call getPlayerYCoord
+		ld l, a
+	ex af, af'
+	ld b, 12						; sprite height
+	ld ix, playerSprites
+	jp drawMaskedSprite8
+
+; Get the player's X coordinate on screen
+; a = player's X coordinate
+getPlayerXCoord:
 	call isPlayerLeftEdge			; hl = playerX in pixels
-	 jr nc, drawPlayerCheckRight	; if we're not at the left edge, check if we're at the right
+	 jr nc, getPlayerCheckRight	; if we're not at the left edge, check if we're at the right
 		ld a, l						; draw at player's x coordinate, no need to adjust it
-		jr drawPlayerCheckTop		; (playerX will be less than 34, so we can load into a directly)
-drawPlayerCheckRight:
+		ret							; (playerX will be less than 34, so we can load into a directly)
+getPlayerCheckRight:
 	call isPlayerRightEdge			; hl = how many pixels from the right edge the player is
-	 jr nc, drawPlayerInMiddle		; if we're not at the right or left edges, draw player in middle
+	 jr nc, getPlayerXInMiddle		; if we're not at the right or left edges, draw player in middle
 	 	ld a, SCREEN_WIDTH * 8		; this is the right edge of the display
 		sub l						; right edge - # pixels player is from right edge
-		jr drawPlayerCheckTop
-drawPlayerInMiddle:
+		ret
+getPlayerXInMiddle:
+; we need to add the map's X offset due to the way smooth scrolling is implemented (in the fastCopy routine)
 	ld a, (mapX)					; LSB off mapX, contains tile offset (0-7)
 	rlca							; the upper 3 bits contain the pixel coordinate
 	rlca							; the lower 5 bits act as a sort of fraction
 	rlca							; so we move the upper 3 bits to the very right
 	and $7							; .. and clear out the rest of the bits
  	add a, SCREEN_WIDTH * 8 / 2 - 4	; so a = middle of screen + map offset
-drawPlayerCheckTop:
-	ld l, 30						; y coord
-	ld b, 12						; sprite height
-	ld ix, playerSprites
-	jp drawMaskedSprite8
+	ret
+
+getPlayerYCoord:
+	call isPlayerTopEdge
+	ld a, l
+	 ret c
+getPlayerCheckBottom:
+	call isPlayerBottomEdge
+	 jr nc, getPlayerYInMiddle
+		ld a, SCREEN_ROWS
+		sub l
+		ret
+getPlayerYInMiddle:
+	ld a, (mapY)
+	rlca
+	rlca
+	rlca
+	and $7
+	add a, (SCREEN_ROWS / 2) - (PLAYER_HEIGHT / 2)
+	ret
 
 ; check if player is near left edge
 ; hl = number of pixels from left edge
@@ -31,6 +59,17 @@ isPlayerLeftEdge:
 	ld de, (playerX)				; remove fraction from playerX
 	call removeFractionDE			; [math.z80] hl = playerX
 	ld e, SCREEN_WIDTH * 8 / 2 - 4	; d = 0 from removeFractionDE
+	sbc hl, de						; carry should be reset from removeFractionDE call
+	add hl, de
+	ret
+
+; check if player is near top edge
+; hl = number of pixels from top edge
+; c set if player is at top edge of map
+isPlayerTopEdge:
+	ld de, (playerY)				; remove fraction from playerY
+	call removeFractionDE			; [math.z80] hl = playerY
+	ld e, SCREEN_ROWS / 2 - 4		; d = 0 from removeFractionDE
 	sbc hl, de						; carry should be reset from removeFractionDE call
 	add hl, de
 	ret
@@ -53,6 +92,25 @@ isPlayerRightEdge:
 	add hl, bc
 	ret
 
+; check if player has reached the bottom edge of screen
+; hl = number of pixels from bottom edge
+; c set if they're at the bottom edge
+isPlayerBottomEdge:
+	ld de, (playerY)				; remove fraction from playerY
+	call removeFractionDE			; [math.z80] hl = playerY in pixels
+	ex de, hl						; de = playerY in pixels
+	ld hl, (mapH)					; we want to subtract the player's Y position
+	ld h, 0							; .. from the mapY
+	add hl, hl						; x2
+	add hl, hl						; x4
+	add hl, hl						; x8
+	sbc hl, de						; mapY*8 - playerY ('add hl, hl' reset the carry flag)
+	ld bc, (SCREEN_ROWS / 2) + (PLAYER_HEIGHT / 2)
+	sbc hl, bc
+	add hl, bc
+	ret
+
+
 moveLeft:
 	ld de, ONE_PIXEL
 	ld hl, (playerX)		; X position in map
@@ -66,4 +124,19 @@ moveRight:
 	ld hl, (playerX)		; X position in map
 	add hl, de				; try to move right one pixel
 	ld (playerX), hl		; save the new map position
+	ret
+
+moveUp:
+	ld de, ONE_PIXEL
+	ld hl, (playerY)
+	or a
+	sbc hl, de
+	ld (playerY), hl
+	ret
+
+moveDown:
+	ld de, ONE_PIXEL
+	ld hl, (playerY)
+	add hl, de
+	ld (playerY), hl
 	ret
