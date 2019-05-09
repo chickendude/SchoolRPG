@@ -4,51 +4,52 @@ drawPlayer:
 	call isPlayerLeftEdge			; hl = playerX in pixels
 	 jr nc, drawPlayerCheckRight	; if we're not at the left edge, check if we're at the right
 		ld a, l						; draw at player's x coordinate, no need to adjust it
-									; playerX will be less than 34, so we can load into a directly
-		jr drawPlayerCheckTop
+		jr drawPlayerCheckTop		; (playerX will be less than 34, so we can load into a directly)
 drawPlayerCheckRight:
-	call isPlayerRightEdge		; also returns c = middle of screen
-	 jr nc, drawPlayerInMiddle	; if we're not at the right or left edges, draw player in middle
-	 	ld a, SCREEN_WIDTH * 8
-		sub l
+	call isPlayerRightEdge			; hl = how many pixels from the right edge the player is
+	 jr nc, drawPlayerInMiddle		; if we're not at the right or left edges, draw player in middle
+	 	ld a, SCREEN_WIDTH * 8		; this is the right edge of the display
+		sub l						; right edge - # pixels player is from right edge
 		jr drawPlayerCheckTop
 drawPlayerInMiddle:
-	ld a, (mapX)		; LSB off mapX, contains tile offset (0-7)
-	rlca				; the upper 3 bits contain the pixel coordinate
-	rlca				; the lower 5 bits act as a sort of fraction
-	rlca				; so we move the upper 3 bits to the very right
-	and $7				; .. and clear out the rest of the bits
+	ld a, (mapX)					; LSB off mapX, contains tile offset (0-7)
+	rlca							; the upper 3 bits contain the pixel coordinate
+	rlca							; the lower 5 bits act as a sort of fraction
+	rlca							; so we move the upper 3 bits to the very right
+	and $7							; .. and clear out the rest of the bits
  	add a, SCREEN_WIDTH * 8 / 2 - 4	; so a = middle of screen + map offset
 drawPlayerCheckTop:
-	ld l, 30			; y coord
-	ld b, 12			; sprite height
+	ld l, 30						; y coord
+	ld b, 12						; sprite height
 	ld ix, playerSprites
 	jp drawMaskedSprite8
 
 ; check if player is near left edge
+; hl = number of pixels from left edge
 ; c set if the player is at the left edge of the map
 isPlayerLeftEdge:
-	ld de, (playerX)		; remove fraction from playerX
-	call removeFractionDE	; [math.z80] hl = playerX
+	ld de, (playerX)				; remove fraction from playerX
+	call removeFractionDE			; [math.z80] hl = playerX
 	ld e, SCREEN_WIDTH * 8 / 2 - 4	; d = 0 from removeFractionDE
-	sbc hl, de				; carry should be reset from removeFractionDE call
+	sbc hl, de						; carry should be reset from removeFractionDE call
 	add hl, de
 	ret
 
 ; check if player is near right edge
-; c set if player is at right edge of the map
+; hl = number of pixels from right edge player is
+; c(arry) set if player is at right edge of the map
 isPlayerRightEdge:
-	ld de, (playerX)		; remove fraction from playerX
-	call removeFractionDE	; [math.z80] hl = playerX
-	ex de, hl				; de = playerX in pixels
-	ld hl, (mapW)			; find map width - player X
-	ld h, 0					; clear out upper byte of HL (max map width = 255)
-	add hl, hl				; x 2
-	add hl, hl				; x 4
-	add hl, hl				; x 8
-	sbc hl, de				; mapW*8 - playerX (carry reset from add hl, hl)
+	ld de, (playerX)				; remove fraction from playerX
+	call removeFractionDE			; [math.z80] hl = playerX
+	ex de, hl						; de = playerX in pixels
+	ld hl, (mapW)					; find map width - player X
+	ld h, 0							; clear out upper byte of HL (max map width = 255)
+	add hl, hl						; x 2
+	add hl, hl						; x 4
+	add hl, hl						; x 8
+	sbc hl, de						; mapW*8 - playerX (carry reset from add hl, hl)
 	ld bc, SCREEN_WIDTH * 8 / 2 + 4	;
-	sbc hl, bc				; check if player is approaching edge of screen
+	sbc hl, bc						; check if player is approaching edge of screen
 	add hl, bc
 	ret
 
