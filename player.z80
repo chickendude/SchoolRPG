@@ -116,9 +116,9 @@ moveLeft:
 	ld de, ONE_PIXEL
 	or a					; reset carry
 	sbc hl, de				; try to move left one pixel
-	ld c, h
+	ld c, h					; h holds the x position of the tile we want to check
 	push hl
-		call checkTilePassX	; [tilemap.z80] c = playerX
+		call checkTilePassX	; [tilemap.z80] c = X position of tile to check
 	pop hl
 	 ret nz
 	ld (playerX), hl		; save the new map position
@@ -134,21 +134,21 @@ moveRight:
 		call checkTilePassX	; [tilemap.z80] c = playerX
 	pop hl					; - restore playerX position -
 	 ret nz					; quit if we can't pass
-	ld (playerX), hl		; save the new map position
+	ld (playerX), hl		; save the new player position
 	ret
 
 moveUp:
-	ld de, ONE_PIXEL
-	ld hl, (playerY)
-	or a
-	sbc hl, de
-	push hl
-		ld e, 4 * ONE_PIXEL
-		add hl, de
-		call checkTilePassY
-	pop hl
-	 ret nz
-	ld (playerY), hl
+	ld de, ONE_PIXEL		; we want to try to move one pixel up
+	ld hl, (playerY)		; so we subtract one "pixel" from the player's Y position
+	or a					; clear out the carry for sbc
+	sbc hl, de				;
+	push hl					; - save the player's new Y position -
+		ld e, 4 * ONE_PIXEL	; the top four pixels of the player can overlap with tiles
+		add hl, de			; so we move four pixels down
+		call checkTilePassY	; [tilemap.z80] h = y position to test
+	pop hl					; - restore player Y -
+	 ret nz					; quit if tile isn't passable
+	ld (playerY), hl		; otherwise update the player's position
 	ret
 
 moveDown:
@@ -156,9 +156,9 @@ moveDown:
 	ld hl, (playerY)
 	add hl, de
 	push hl
-		ld de, 12 * ONE_PIXEL
-		add hl, de
-		call checkTilePassY
+		ld de, 12 * ONE_PIXEL	; we want to check below the player's feet
+		add hl, de				; so we add twelve pixels (player's height) to the y position
+		call checkTilePassY		; [tilemap.z80] h = y position to test
 	pop hl
 	 ret nz
 	ld (playerY), hl
