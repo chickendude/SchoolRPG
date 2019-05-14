@@ -137,52 +137,61 @@ drawMapSprite:
 	 jp nz, drawMapRow
 	ret
 
-; Map Movement Routines
-; Handle moving around the map.
-
-mapLeft:
-	ld de, -ONE_PIXEL
-	ld hl, (mapX)			; get X pos in map
-	add hl, de
-	 jr c, $ + 5
-		ld hl, 0
-	ld (mapX), hl
+; Check if a tile can be passed or not
+; We first check if the player's body (8 pixels) is in the same tile as the player's
+; head (4 pixels). If not, we need to check one tile lower. Then we get the position
+; in the map by multiplying the map width by the y value and then adding that to the
+; start of the map data and then adding the x value. Then we test if that tile is a
+; passable tile or not. If it isn't, we can't advance and just quit the routine. If
+; it is a passable tile, we check if the player's body straddles more than one tile
+; or not. If it is, we check the tile below as well.
+;
+; c = X value on map to check
+checkTilePassX:
+	ld hl, (playerY)
+	ld a, l
+	and %11100000
+	cp 4 * ONE_PIXEL		; the top 4 pixels of the player don't block you from walking on a tile
+	 jr c, $ + 3
+		inc h
+	ld de, (mapW)
+	call multEH				; [math.z80] hl = mapY * mapW, b = 0
+	ld de, (mapPtr)
+	add hl, de				; map start + y offset
+	add hl, bc				; the position to check in the map
+	ex af, af'				; - save playerY -
+		ld a, (hl)			; the tile to check
+		or a				; check if the tile is passable (currently only 0 is passable)
+		 ret nz				; no need to continue checking if the top tile isn't passable
+	ex af, af'				; - restore playerY -
+	cp 4 * ONE_PIXEL		; if the head is at pixel 4, the body starts at pixel 8 and thus is aligned
+	 ret z					; .. so we only need to test one tile
+	ld de, (mapW)			; otherwise, move down to the next row in the map
+	ld d, b					; clear out d (b was reset in multEH)
+	add hl, de				; get the new map position
+	ld a, (hl)				; grab the tile id
+	or a					; check if it's passable
 	ret
 
-mapRight:
-	ld de, ONE_PIXEL
-	ld hl, (mapX)			; X position in map
-	add hl, de				; try to move right one pixel
-	ld a, (mapW)			; width of map in tiles
-	sub SCREEN_WIDTH + 1	; since X position starts at the left edge, we need to subtract screen width
-							; .. to test if we're at the right edge of the map
-	cp h					; h holds the byte/tile-aligned value
-	inc a
-	 jr nc, $ + 5			; test if h is pointing to the right edge of the screen
-		ld h, a				; if so, make it stop at the right edge
-		ld l, 0				;
-	ld (mapX), hl			; save the new map position
+; h = Y value on map to check
+checkTilePassY:
+	ld bc, (playerX)
+	ld c, b
+	ld de, (mapW)
+	call multEH				; [math.z80] hl = mapY * mapW, b = 0
+	ld de, (mapPtr)
+	add hl, de				; map start + y offset
+	add hl, bc				; the position to check in the map
+	ld a, (hl)				; the tile to check
+	or a					; check if the tile is passable (currently only 0 is passable)
+	 ret nz					; no need to continue checking if the top tile isn't passable
+	ld a, (playerX)			; check if the player is covering one or two tiles
+	and %11100000			; clear out fraction
+	or a					; if x = 0, the player is aligned
+	 ret z					; .. so we only need to test one tile
+	inc hl					; get the new map position
+	ld a, (hl)				; grab the tile id
+	or a					; check if it's passable
 	ret
 
-mapUp:
-	ld de, -ONE_PIXEL
-	ld hl, (mapY)			; get Y pos in map
-	add hl, de
-	 jr c, $ + 5
-		ld hl, 0
-	ld (mapY), hl
-	ret
 
-mapDown:
-	ld de, ONE_PIXEL
-	ld hl, (mapY)			; similar to mapRight, just for Y values
-	add hl, de
-	ld a, (mapH)			; since on the screen we show SCREEN_ROWS / 8 tiles
-	sub SCREEN_ROWS / 8 + 1	; .. (8x8, so 12 tiles), we need to subtract that from
-	cp h					; .. mapH to make sure mapY and mapH are both pointing
-	inc a					; to compensate for the + 1  we subtracted from mapH
-	 jr nc, $ + 5			; check if we're at the edge or past it
-		ld h, a				; if so, align to right edge of map
-		ld l, 0
-	ld (mapY), hl			; save new Y position
-	ret

@@ -49,6 +49,8 @@ multAC3:
 ;	de = number to convert: %0000 0000 000.0 0000 -> %---- -000 0000 0000
 ; output:
 ;	hl = converted number
+removeFractionHL:
+	ex de, hl			; put hl into de
 removeFractionDE:
 	ld a, e				; e holds the values 0.0 to 7.99...
 	rlca \ rlca \ rlca	; remove the fraction

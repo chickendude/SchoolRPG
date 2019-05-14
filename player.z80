@@ -112,10 +112,15 @@ isPlayerBottomEdge:
 
 
 moveLeft:
-	ld de, ONE_PIXEL
 	ld hl, (playerX)		; X position in map
+	ld de, ONE_PIXEL
 	or a					; reset carry
 	sbc hl, de				; try to move left one pixel
+	ld c, h
+	push hl
+		call checkTilePassX	; [tilemap.z80] c = playerX
+	pop hl
+	 ret nz
 	ld (playerX), hl		; save the new map position
 	ret
 
@@ -123,6 +128,12 @@ moveRight:
 	ld de, ONE_PIXEL
 	ld hl, (playerX)		; X position in map
 	add hl, de				; try to move right one pixel
+	push hl					; - save the new playerX positon -
+		ld c, h				; we need to check the tile to the right of the player
+		inc c				; so we add one to c
+		call checkTilePassX	; [tilemap.z80] c = playerX
+	pop hl					; - restore playerX position -
+	 ret nz					; quit if we can't pass
 	ld (playerX), hl		; save the new map position
 	ret
 
@@ -131,6 +142,12 @@ moveUp:
 	ld hl, (playerY)
 	or a
 	sbc hl, de
+	push hl
+		ld e, 4 * ONE_PIXEL
+		add hl, de
+		call checkTilePassY
+	pop hl
+	 ret nz
 	ld (playerY), hl
 	ret
 
@@ -138,5 +155,11 @@ moveDown:
 	ld de, ONE_PIXEL
 	ld hl, (playerY)
 	add hl, de
+	push hl
+		ld de, 12 * ONE_PIXEL
+		add hl, de
+		call checkTilePassY
+	pop hl
+	 ret nz
 	ld (playerY), hl
 	ret
