@@ -503,7 +503,7 @@ The final fight starts with a short cutscene of Mrs. Maull talking to her cronie
 "Mrs. Maull: NO! MORE! TWINKIES! 'TIL HE'S KILLED!"  
 "Mrs. Maull: What's that I smell? Chocolate! Yes, yes, yes!"  
 "You: Crap! I forgot to take my @_#\*$[' chocolate bar out of my pocket!"  
-"Mrs. Maull: Come out, my dear spy."
+"Mrs. Maull: Come out, my dear spy."  
 "You: @(#\*!"
 
 ### Stats
